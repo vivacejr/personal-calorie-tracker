@@ -1,5 +1,8 @@
 'use strict';
 
+// ── API URL (stored in localStorage, entered once by user) ─────────────────
+let API_URL = localStorage.getItem('calorie_tracker_url') || '';
+
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
   ingredients: [],
@@ -10,7 +13,7 @@ const state = {
 // ── API layer ──────────────────────────────────────────────────────────────
 const api = {
   async _get(params) {
-    const url = new URL(CONFIG.appsScriptUrl);
+    const url = new URL(API_URL);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString());
     const json = await res.json();
@@ -19,7 +22,7 @@ const api = {
   },
 
   async _post(body) {
-    const res = await fetch(CONFIG.appsScriptUrl, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify(body),
       // No Content-Type header → browser sends text/plain → no CORS preflight
@@ -475,8 +478,40 @@ async function loadHistory(date) {
   }
 }
 
+// ── Setup screen ───────────────────────────────────────────────────────────
+function showSetup() {
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+function hideSetup() {
+  document.getElementById('setup-screen').style.display = 'none';
+}
+
+function saveApiUrl() {
+  const val = document.getElementById('setup-url').value.trim();
+  if (!val || !val.startsWith('https://script.google.com')) {
+    toast('Paste a valid Apps Script URL', 'error');
+    return;
+  }
+  API_URL = val;
+  localStorage.setItem('calorie_tracker_url', API_URL);
+  hideSetup();
+  start();
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 async function init() {
+  // Setup screen
+  document.getElementById('setup-connect-btn').addEventListener('click', saveApiUrl);
+  document.getElementById('setup-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiUrl();
+  });
+
+  if (!API_URL) { showSetup(); return; }
+  start();
+}
+
+async function start() {
   // Nav
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => showView(btn.dataset.view));

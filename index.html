@@ -148,10 +148,20 @@
   </div>
 </div>
 
+<!-- ── SETUP SCREEN ── -->
+<div id="setup-screen" class="setup-screen" style="display:none">
+  <div class="setup-card">
+    <span class="view-eyebrow" style="display:block;text-align:center;margin-bottom:10px">FIRST TIME SETUP</span>
+    <h2 class="setup-title">Connect Your<br>Google Sheet</h2>
+    <p class="setup-sub">Paste your Apps Script Web App URL below. You only need to do this once per browser.</p>
+    <input type="url" id="setup-url" class="input" placeholder="https://script.google.com/macros/s/…">
+    <button id="setup-connect-btn" class="btn btn--primary btn--full" style="margin-top:12px">CONNECT</button>
+  </div>
+</div>
+
 <!-- ── TOAST ── -->
 <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
-<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
