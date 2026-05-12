@@ -260,6 +260,24 @@ html, body {
 .t-fat  { color: var(--red);    }
 
 /* ── Ingredient cards (library view) ── */
+.ing-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.ing-card-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 8px; }
+.ing-edit-btn {
+  background: none; border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--muted2); font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  padding: 3px 8px; cursor: pointer; font-family: inherit;
+  min-height: 26px; transition: border-color 0.15s, color 0.15s;
+}
+.ing-edit-btn:active { border-color: var(--cyan); color: var(--cyan); }
+.ing-del-btn {
+  background: none; border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--muted); font-size: 16px; line-height: 1;
+  padding: 3px 7px; cursor: pointer;
+  min-height: 26px; display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ing-del-btn:active { border-color: var(--red); color: var(--red); }
+
 .ing-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -267,7 +285,7 @@ html, body {
   padding: 11px 13px;
   margin-bottom: 6px;
 }
-.ing-card-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.ing-card-name { font-size: 14px; font-weight: 600; }
 .ing-card-macros { display: flex; gap: 10px; flex-wrap: wrap; font-size: 10px; color: var(--muted2); }
 .clr-cal    { color: var(--blue);   }
 .clr-protein{ color: var(--green);  }

@@ -32,11 +32,13 @@ const api = {
     return json;
   },
 
-  getIngredients:  ()       => api._get({ action: 'getIngredients' }),
-  getLogs:         (date)   => api._get({ action: 'getLogs', date }),
-  addIngredient:   (data)   => api._post({ action: 'addIngredient', ...data }),
-  addMealEntries:  (entries) => api._post({ action: 'addMealEntries', entries }),
-  deleteLog:       (id)     => api._post({ action: 'deleteLog', id }),
+  getIngredients:    ()        => api._get({ action: 'getIngredients' }),
+  getLogs:           (date)    => api._get({ action: 'getLogs', date }),
+  addIngredient:     (data)    => api._post({ action: 'addIngredient', ...data }),
+  updateIngredient:  (data)    => api._post({ action: 'updateIngredient', ...data }),
+  deleteIngredient:  (id)      => api._post({ action: 'deleteIngredient', id }),
+  addMealEntries:    (entries) => api._post({ action: 'addMealEntries', entries }),
+  deleteLog:         (id)      => api._post({ action: 'deleteLog', id }),
 };
 
 // ── Utils ──────────────────────────────────────────────────────────────────
@@ -386,7 +388,13 @@ function renderIngList(filter) {
   }
   el.innerHTML = items.map(ing => `
     <div class="ing-card">
-      <div class="ing-card-name">${esc(ing.name)}</div>
+      <div class="ing-card-top">
+        <div class="ing-card-name">${esc(ing.name)}</div>
+        <div class="ing-card-actions">
+          <button class="ing-edit-btn" data-id="${esc(ing.id)}" title="Edit">Edit</button>
+          <button class="ing-del-btn" data-id="${esc(ing.id)}" title="Delete">×</button>
+        </div>
+      </div>
       <div class="ing-card-macros">
         <span class="clr-cal">${ing.calories} kcal</span>
         <span class="clr-protein">P: ${ing.protein}g</span>
@@ -397,14 +405,44 @@ function renderIngList(filter) {
         <span class="clr-muted">per 100g</span>
       </div>
     </div>`).join('');
+
+  el.querySelectorAll('.ing-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ing = state.ingredients.find(i => i.id === btn.dataset.id);
+      if (ing) openModal(ing);
+    });
+  });
+
+  el.querySelectorAll('.ing-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ing = state.ingredients.find(i => i.id === btn.dataset.id);
+      if (!ing) return;
+      if (!confirm(`Delete "${ing.name}"? This won't remove it from past logs.`)) return;
+      btn.disabled = true;
+      try {
+        await api.deleteIngredient(ing.id);
+        state.ingredients = state.ingredients.filter(i => i.id !== ing.id);
+        renderIngList();
+        toast('Ingredient deleted', 'success');
+      } catch (e) {
+        toast('Failed to delete', 'error');
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
-async function addIngredient() {
+// null = adding new; ingredient object = editing existing
+let editingIngredient = null;
+
+async function saveIngredient() {
   const name = document.getElementById('new-name').value.trim();
   if (!name) { toast('Enter a name', 'error'); return; }
-  if (state.ingredients.find(i => i.name.toLowerCase() === name.toLowerCase())) {
-    toast('Ingredient already exists', 'error'); return;
-  }
+
+  const isDupe = state.ingredients.find(i =>
+    i.name.toLowerCase() === name.toLowerCase() && i.id !== (editingIngredient && editingIngredient.id)
+  );
+  if (isDupe) { toast('Ingredient already exists', 'error'); return; }
 
   const data = {
     name,
@@ -417,25 +455,48 @@ async function addIngredient() {
   };
 
   const btn = document.getElementById('modal-confirm');
-  btn.disabled = true; btn.textContent = 'ADDING…';
+  btn.disabled = true; btn.textContent = editingIngredient ? 'SAVING…' : 'ADDING…';
 
   try {
-    const result = await api.addIngredient(data);
-    state.ingredients.push(result);
-    state.ingredients.sort((a, b) => a.name.localeCompare(b.name));
+    if (editingIngredient) {
+      await api.updateIngredient({ id: editingIngredient.id, ...data });
+      const idx = state.ingredients.findIndex(i => i.id === editingIngredient.id);
+      if (idx !== -1) state.ingredients[idx] = { ...state.ingredients[idx], ...data };
+      toast('Ingredient updated!', 'success');
+    } else {
+      const result = await api.addIngredient(data);
+      state.ingredients.push(result);
+      state.ingredients.sort((a, b) => a.name.localeCompare(b.name));
+      toast('Ingredient added!', 'success');
+    }
     closeModal();
     renderIngList();
-    toast('Ingredient added!', 'success');
   } catch (e) {
-    toast('Failed to add. Try again.', 'error');
+    toast('Failed to save. Try again.', 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'ADD';
+    btn.disabled = false;
+    btn.textContent = editingIngredient ? 'SAVE' : 'ADD';
   }
 }
 
-function openModal()  { document.getElementById('add-modal').style.display = 'flex'; document.getElementById('new-name').focus(); }
+function openModal(ing = null) {
+  editingIngredient = ing;
+  document.getElementById('modal-title').textContent  = ing ? 'EDIT INGREDIENT' : 'NEW INGREDIENT';
+  document.getElementById('modal-confirm').textContent = ing ? 'SAVE' : 'ADD';
+  document.getElementById('new-name').value     = ing ? ing.name     : '';
+  document.getElementById('new-calories').value = ing ? ing.calories : '';
+  document.getElementById('new-protein').value  = ing ? ing.protein  : '';
+  document.getElementById('new-carbs').value    = ing ? ing.carbs    : '';
+  document.getElementById('new-fat').value      = ing ? ing.fat      : '';
+  document.getElementById('new-fiber').value    = ing ? ing.fiber    : '';
+  document.getElementById('new-sugar').value    = ing ? ing.sugar    : '';
+  document.getElementById('add-modal').style.display = 'flex';
+  document.getElementById('new-name').focus();
+}
+
 function closeModal() {
   document.getElementById('add-modal').style.display = 'none';
+  editingIngredient = null;
   ['new-name','new-calories','new-protein','new-carbs','new-fat','new-fiber','new-sugar']
     .forEach(id => { document.getElementById(id).value = ''; });
 }
@@ -525,7 +586,7 @@ async function start() {
   document.getElementById('ingredients-search').addEventListener('input', e => renderIngList(e.target.value));
   document.getElementById('add-ingredient-fab').addEventListener('click', openModal);
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
-  document.getElementById('modal-confirm').addEventListener('click', addIngredient);
+  document.getElementById('modal-confirm').addEventListener('click', saveIngredient);
   document.getElementById('modal-backdrop') && document.getElementById('modal-backdrop').addEventListener('click', closeModal);
   document.querySelector('.modal-backdrop').addEventListener('click', closeModal);
 

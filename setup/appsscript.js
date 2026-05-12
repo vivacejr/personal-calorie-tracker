@@ -86,6 +86,36 @@ function doPost(e) {
       return jsonResponse({ success: false, error: 'Row not found' });
     }
 
+    if (body.action === 'updateIngredient') {
+      const sheet = ss.getSheetByName('Ingredients');
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0];
+      const idCol = headers.indexOf('id');
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][idCol] === body.id) {
+          const r = i + 1;
+          ['name','calories','protein','carbs','fat','fiber','sugar'].forEach(field => {
+            sheet.getRange(r, headers.indexOf(field) + 1).setValue(body[field]);
+          });
+          return jsonResponse({ success: true });
+        }
+      }
+      return jsonResponse({ success: false, error: 'Ingredient not found' });
+    }
+
+    if (body.action === 'deleteIngredient') {
+      const sheet = ss.getSheetByName('Ingredients');
+      const data = sheet.getDataRange().getValues();
+      const idCol = data[0].indexOf('id');
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][idCol] === body.id) {
+          sheet.deleteRow(i + 1);
+          return jsonResponse({ success: true });
+        }
+      }
+      return jsonResponse({ success: false, error: 'Ingredient not found' });
+    }
+
     return jsonResponse({ success: false, error: 'Unknown action: ' + body.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
