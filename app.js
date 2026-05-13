@@ -7,7 +7,6 @@ let API_URL = localStorage.getItem('calorie_tracker_url') || '';
 const state = {
   ingredients: [],
   currentMeal: { name: '', items: [] }, // items: [{ingredient, grams}]
-  charts: { today: null, history: null },
 };
 
 // ── API layer ──────────────────────────────────────────────────────────────
@@ -143,38 +142,8 @@ function macroCardHTML(t) {
     </div>`;
 }
 
-function renderPie(canvasId, totals, existing) {
-  if (existing) existing.destroy();
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return null;
-  const { protein, carbs, fat } = totals;
-  if (!protein && !carbs && !fat) {
-    canvas.parentElement.innerHTML = '<div class="empty-state" style="padding:16px">No macro data</div>';
-    return null;
-  }
-  return new Chart(canvas, {
-    type: 'pie',
-    data: {
-      labels: ['Protein', 'Carbs', 'Fat'],
-      datasets: [{
-        data: [protein, carbs, fat],
-        backgroundColor: ['#00ff88', '#ffe600', '#ff3366'],
-        borderColor: '#12121a',
-        borderWidth: 2,
-      }],
-    },
-    options: {
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#e0e0ff', font: { size: 11, family: 'Inter, system-ui' }, padding: 14 },
-        },
-      },
-    },
-  });
-}
 
-function renderMealGroups(logs, containerId, deletable) {
+function renderMealGroups(logs, containerId, onDelete) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const groups = groupByMeal(logs);
@@ -193,21 +162,21 @@ function renderMealGroups(logs, containerId, deletable) {
           <div class="log-row-meta">${row.grams}${getIngUnit(row.ingredientId) === 'qty' ? '×' : 'g'} &nbsp;·&nbsp; P:${row.protein} C:${row.carbs} F:${row.fat}</div>
         </div>
         <span class="log-row-kcal">${row.calories}</span>
-        ${deletable ? `<button class="del-btn" data-id="${esc(row.id)}" title="Delete">×</button>` : ''}
+        ${onDelete ? `<button class="del-btn" data-id="${esc(row.id)}" title="Delete">×</button>` : ''}
       </div>`;
     });
     html += '</div>';
   });
   el.innerHTML = html;
 
-  if (deletable) {
+  if (onDelete) {
     el.querySelectorAll('.del-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('Remove this entry?')) return;
         btn.disabled = true;
         try {
           await api.deleteLog(btn.dataset.id);
-          loadToday();
+          onDelete();
         } catch (e) {
           toast('Failed to delete', 'error');
           btn.disabled = false;
@@ -231,20 +200,16 @@ async function loadToday() {
     if (!logs.length) {
       content.innerHTML =
         macroCardHTML({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }) +
-        '<div class="chart-wrap"><div class="empty-state" style="padding:12px">No meals logged today</div></div>' +
-        '<div id="today-meals"></div>';
-      state.charts.today = null;
+        '<div class="empty-state">No meals logged today</div>';
       return;
     }
 
     const totals = sumMacros(logs);
     content.innerHTML =
       macroCardHTML(totals) +
-      '<div class="chart-wrap"><canvas id="today-chart"></canvas></div>' +
       '<div id="today-meals"></div>';
 
-    state.charts.today = renderPie('today-chart', totals, state.charts.today);
-    renderMealGroups(logs, 'today-meals', true);
+    renderMealGroups(logs, 'today-meals', loadToday);
   } catch (e) {
     content.innerHTML = '<div class="empty-state">Failed to load. Tap to retry.</div>';
     content.querySelector('.empty-state').addEventListener('click', loadToday);
@@ -253,6 +218,7 @@ async function loadToday() {
 
 // ── LOG MEAL ───────────────────────────────────────────────────────────────
 function initLogView() {
+  document.getElementById('meal-date').value = todayStr();
   document.getElementById('ingredient-search').value = '';
   renderPicker('');
   renderSelected();
@@ -366,7 +332,7 @@ async function saveMeal() {
   const btn = document.getElementById('save-meal-btn');
   btn.disabled = true; btn.textContent = 'SAVING…';
 
-  const date = todayStr();
+  const date = document.getElementById('meal-date').value || todayStr();
   const entries = state.currentMeal.items.map(({ ingredient, grams }) => ({
     date, mealName,
     ingredientId: ingredient.id,
@@ -377,10 +343,17 @@ async function saveMeal() {
 
   try {
     await api.addMealEntries(entries);
-    toast('Meal saved!', 'success');
     state.currentMeal = { name: '', items: [] };
     document.getElementById('meal-name').value = '';
-    showView('today');
+    if (date === todayStr()) {
+      toast('Meal saved!', 'success');
+      showView('today');
+    } else {
+      toast('Meal saved!', 'success');
+      document.getElementById('history-date').value = date;
+      showView('history');
+      loadHistory(date);
+    }
   } catch (e) {
     toast('Failed to save. Try again.', 'error');
   } finally {
@@ -551,11 +524,9 @@ async function loadHistory(date) {
     const totals = sumMacros(logs);
     content.innerHTML =
       macroCardHTML(totals) +
-      '<div class="chart-wrap"><canvas id="history-chart"></canvas></div>' +
       '<div id="history-meals"></div>';
 
-    state.charts.history = renderPie('history-chart', totals, state.charts.history);
-    renderMealGroups(logs, 'history-meals', false);
+    renderMealGroups(logs, 'history-meals', () => loadHistory(date));
   } catch (e) {
     content.innerHTML = '<div class="empty-state">Failed to load.</div>';
   }
