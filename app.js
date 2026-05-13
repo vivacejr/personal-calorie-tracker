@@ -465,7 +465,7 @@ async function saveIngredient() {
       toast('Ingredient updated!', 'success');
     } else {
       const result = await api.addIngredient(data);
-      state.ingredients.push(result);
+      state.ingredients.push(result.data);
       state.ingredients.sort((a, b) => a.name.localeCompare(b.name));
       toast('Ingredient added!', 'success');
     }
