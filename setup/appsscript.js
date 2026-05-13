@@ -18,15 +18,25 @@ function doGet(e) {
   try {
     const action = e.parameter.action;
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sc = CacheService.getScriptCache();
 
     if (action === 'getIngredients') {
-      return jsonResponse({ success: true, data: getSheetRows(ss, 'Ingredients') });
+      const cached = sc.get('ingredients');
+      if (cached) return jsonResponse({ success: true, data: JSON.parse(cached) });
+      const data = getSheetRows(ss, 'Ingredients');
+      sc.put('ingredients', JSON.stringify(data), 600); // 10 min
+      return jsonResponse({ success: true, data });
     }
 
     if (action === 'getLogs') {
       const date = e.parameter.date;
+      const key = 'logs_' + date;
+      const cached = sc.get(key);
+      if (cached) return jsonResponse({ success: true, data: JSON.parse(cached) });
       const all = getSheetRows(ss, 'Logs');
-      return jsonResponse({ success: true, data: all.filter(r => r.date === date) });
+      const filtered = all.filter(r => r.date === date);
+      sc.put(key, JSON.stringify(filtered), 300); // 5 min
+      return jsonResponse({ success: true, data: filtered });
     }
 
     return jsonResponse({ success: false, error: 'Unknown action: ' + action });
@@ -39,6 +49,7 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sc = CacheService.getScriptCache();
 
     if (body.action === 'addIngredient') {
       const sheet = ss.getSheetByName('Ingredients');
@@ -49,6 +60,7 @@ function doPost(e) {
         id, body.name, body.calories, body.protein,
         body.carbs, body.fat, body.fiber, body.sugar, now, unit
       ]);
+      sc.remove('ingredients');
       return jsonResponse({
         success: true,
         data: {
@@ -71,6 +83,9 @@ function doPost(e) {
         ]);
         return id;
       });
+      // Invalidate log cache for every date in the batch
+      const dates = [...new Set(body.entries.map(en => en.date))];
+      sc.removeAll(dates.map(d => 'logs_' + d));
       return jsonResponse({ success: true, ids });
     }
 
@@ -81,6 +96,7 @@ function doPost(e) {
       for (let i = 1; i < data.length; i++) {
         if (data[i][idCol] === body.id) {
           sheet.deleteRow(i + 1);
+          if (body.date) sc.remove('logs_' + body.date);
           return jsonResponse({ success: true });
         }
       }
@@ -99,6 +115,7 @@ function doPost(e) {
             const col = headers.indexOf(field);
             if (col !== -1) sheet.getRange(r, col + 1).setValue(body[field] !== undefined ? body[field] : '');
           });
+          sc.remove('ingredients');
           return jsonResponse({ success: true });
         }
       }
@@ -112,6 +129,7 @@ function doPost(e) {
       for (let i = 1; i < data.length; i++) {
         if (data[i][idCol] === body.id) {
           sheet.deleteRow(i + 1);
+          sc.remove('ingredients');
           return jsonResponse({ success: true });
         }
       }
@@ -129,11 +147,11 @@ function doPost(e) {
 function getSheetRows(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
   const range = sheet.getDataRange();
-  const data = range.getDisplayValues(); // returns everything as strings, no type conversion
+  const data = range.getDisplayValues();
   if (data.length <= 1) return [];
   const headers = data[0];
   return data.slice(1)
-    .filter(row => row[0]) // skip empty rows
+    .filter(row => row[0])
     .map(row => {
       const obj = {};
       headers.forEach((h, i) => { obj[h] = row[i]; });
@@ -160,15 +178,11 @@ function addUnitColumn() {
     return;
   }
 
-  // Append 'unit' as the last column header
   const lastCol = headers.length + 1;
   sheet.getRange(1, lastCol).setValue('unit');
-
-  // Fill all existing ingredient rows with 'g' (default)
   for (let i = 2; i <= data.length; i++) {
     sheet.getRange(i, lastCol).setValue('g');
   }
-
   Logger.log('unit column added. All existing ingredients set to g.');
 }
 
@@ -177,13 +191,11 @@ function addUnitColumn() {
 function populateStarterData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // Create/reset Ingredients sheet
   let ingSheet = ss.getSheetByName('Ingredients');
   if (!ingSheet) ingSheet = ss.insertSheet('Ingredients');
   ingSheet.clearContents();
-  ingSheet.appendRow(['id', 'name', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'createdAt']);
+  ingSheet.appendRow(['id', 'name', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'createdAt', 'unit']);
 
-  // Create/reset Logs sheet
   let logSheet = ss.getSheetByName('Logs');
   if (!logSheet) logSheet = ss.insertSheet('Logs');
   logSheet.clearContents();
@@ -192,7 +204,6 @@ function populateStarterData() {
     'grams', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'loggedAt'
   ]);
 
-  // Starter ingredients (macros per 100g)
   const starters = [
     ['Chicken Breast',      165, 31,   0,    3.6,  0,    0   ],
     ['Brown Rice (cooked)', 123, 2.7,  25.6, 1,    1.8,  0.4 ],
@@ -208,7 +219,7 @@ function populateStarterData() {
 
   const now = new Date().toISOString();
   starters.forEach(([name, cal, p, c, f, fiber, sugar]) => {
-    ingSheet.appendRow([Utilities.getUuid(), name, cal, p, c, f, fiber, sugar, now]);
+    ingSheet.appendRow([Utilities.getUuid(), name, cal, p, c, f, fiber, sugar, now, 'g']);
   });
 
   Logger.log('Starter data populated successfully.');

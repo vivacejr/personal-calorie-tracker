@@ -3,6 +3,10 @@
 // ── API URL (stored in localStorage, entered once by user) ─────────────────
 let API_URL = localStorage.getItem('calorie_tracker_url') || '';
 
+// ── Frontend log cache (avoids repeat API calls when switching views) ───────
+const logCache = {}; // { "2026-05-14": [...logs] }
+function invalidateLogCache(date) { delete logCache[date]; }
+
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
   ingredients: [],
@@ -37,7 +41,7 @@ const api = {
   updateIngredient:  (data)    => api._post({ action: 'updateIngredient', ...data }),
   deleteIngredient:  (id)      => api._post({ action: 'deleteIngredient', id }),
   addMealEntries:    (entries) => api._post({ action: 'addMealEntries', entries }),
-  deleteLog:         (id)      => api._post({ action: 'deleteLog', id }),
+  deleteLog:         (id, date) => api._post({ action: 'deleteLog', id, date }),
 };
 
 // ── Utils ──────────────────────────────────────────────────────────────────
@@ -163,7 +167,7 @@ function renderMealGroups(logs, containerId, onDelete) {
           <div class="log-row-meta">${row.grams}${getIngUnit(row.ingredientId) === 'qty' ? '×' : 'g'} &nbsp;·&nbsp; P:${row.protein} C:${row.carbs} F:${row.fat}</div>
         </div>
         <span class="log-row-kcal">${row.calories}</span>
-        ${onDelete ? `<button class="del-btn" data-id="${esc(row.id)}" title="Delete">×</button>` : ''}
+        ${onDelete ? `<button class="del-btn" data-id="${esc(row.id)}" data-date="${esc(row.date)}" title="Delete">×</button>` : ''}
       </div>`;
     });
     html += '</div>';
@@ -176,7 +180,8 @@ function renderMealGroups(logs, containerId, onDelete) {
         if (!confirm('Remove this entry?')) return;
         btn.disabled = true;
         try {
-          await api.deleteLog(btn.dataset.id);
+          await api.deleteLog(btn.dataset.id, btn.dataset.date);
+          invalidateLogCache(btn.dataset.date);
           onDelete();
         } catch (e) {
           toast('Failed to delete', 'error');
@@ -189,32 +194,37 @@ function renderMealGroups(logs, containerId, onDelete) {
 
 // ── TODAY ──────────────────────────────────────────────────────────────────
 async function loadToday() {
-  const content = document.getElementById('today-content');
-  content.innerHTML = '<div class="loading-state">Loading</div>';
-
   const date = todayStr();
   document.getElementById('today-date').textContent = fmtDate(date);
 
+  if (logCache[date]) { renderTodayLogs(date, logCache[date]); return; }
+
+  const content = document.getElementById('today-content');
+  content.innerHTML = '<div class="loading-state">Loading</div>';
+
   try {
     const logs = await api.getLogs(date);
+    logCache[date] = logs;
 
-    if (!logs.length) {
-      content.innerHTML =
-        macroCardHTML({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }) +
-        '<div class="empty-state">No meals logged today</div>';
-      return;
-    }
-
-    const totals = sumMacros(logs);
-    content.innerHTML =
-      macroCardHTML(totals) +
-      '<div id="today-meals"></div>';
-
-    renderMealGroups(logs, 'today-meals', loadToday);
+    renderTodayLogs(date, logs);
   } catch (e) {
+    const content = document.getElementById('today-content');
     content.innerHTML = '<div class="empty-state">Failed to load. Tap to retry.</div>';
     content.querySelector('.empty-state').addEventListener('click', loadToday);
   }
+}
+
+function renderTodayLogs(date, logs) {
+  const content = document.getElementById('today-content');
+  if (!logs.length) {
+    content.innerHTML =
+      macroCardHTML({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 }) +
+      '<div class="empty-state">No meals logged today</div>';
+    return;
+  }
+  const totals = sumMacros(logs);
+  content.innerHTML = macroCardHTML(totals) + '<div id="today-meals"></div>';
+  renderMealGroups(logs, 'today-meals', () => { invalidateLogCache(date); loadToday(); });
 }
 
 // ── LOG MEAL ───────────────────────────────────────────────────────────────
@@ -344,6 +354,7 @@ async function saveMeal() {
 
   try {
     await api.addMealEntries(entries);
+    invalidateLogCache(date);
     state.currentMeal = { name: '', items: [] };
     document.getElementById('meal-name').value = '';
     if (date === todayStr()) {
@@ -509,26 +520,29 @@ function initHistoryView() {
 }
 
 async function loadHistory(date) {
+  if (logCache[date]) { renderHistoryLogs(date, logCache[date]); return; }
+
   const content = document.getElementById('history-content');
   content.innerHTML = '<div class="loading-state">Loading</div>';
 
   try {
     const logs = await api.getLogs(date);
-
-    if (!logs.length) {
-      content.innerHTML = `<div class="empty-state">No meals logged on<br>${fmtDate(date)}</div>`;
-      return;
-    }
-
-    const totals = sumMacros(logs);
-    content.innerHTML =
-      macroCardHTML(totals) +
-      '<div id="history-meals"></div>';
-
-    renderMealGroups(logs, 'history-meals', () => loadHistory(date));
+    logCache[date] = logs;
+    renderHistoryLogs(date, logs);
   } catch (e) {
     content.innerHTML = '<div class="empty-state">Failed to load.</div>';
   }
+}
+
+function renderHistoryLogs(date, logs) {
+  const content = document.getElementById('history-content');
+  if (!logs.length) {
+    content.innerHTML = `<div class="empty-state">No meals logged on<br>${fmtDate(date)}</div>`;
+    return;
+  }
+  const totals = sumMacros(logs);
+  content.innerHTML = macroCardHTML(totals) + '<div id="history-meals"></div>';
+  renderMealGroups(logs, 'history-meals', () => { invalidateLogCache(date); loadHistory(date); });
 }
 
 // ── Setup screen ───────────────────────────────────────────────────────────
@@ -590,15 +604,19 @@ async function start() {
   // History
   document.getElementById('history-date').addEventListener('change', e => { if (e.target.value) loadHistory(e.target.value); });
 
-  // Load ingredients once, cache for session
+  // Load ingredients + today's logs in parallel
   try {
-    const ings = await api.getIngredients();
+    const [ings, todayLogs] = await Promise.all([
+      api.getIngredients(),
+      api.getLogs(todayStr()),
+    ]);
     state.ingredients = ings.sort((a, b) => a.name.localeCompare(b.name));
+    logCache[todayStr()] = todayLogs;
   } catch (e) {
-    toast('Could not load ingredients', 'error');
+    toast('Could not load data', 'error');
   }
 
-  // Show today
+  // Show today (renders instantly from cache)
   showView('today');
 }
 
