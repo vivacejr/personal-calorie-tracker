@@ -44,16 +44,17 @@ function doPost(e) {
       const sheet = ss.getSheetByName('Ingredients');
       const id = Utilities.getUuid();
       const now = new Date().toISOString();
+      const unit = body.unit || 'g';
       sheet.appendRow([
         id, body.name, body.calories, body.protein,
-        body.carbs, body.fat, body.fiber, body.sugar, now
+        body.carbs, body.fat, body.fiber, body.sugar, now, unit
       ]);
       return jsonResponse({
         success: true,
         data: {
           id, name: body.name, calories: body.calories, protein: body.protein,
           carbs: body.carbs, fat: body.fat, fiber: body.fiber, sugar: body.sugar,
-          createdAt: now
+          unit, createdAt: now
         }
       });
     }
@@ -94,8 +95,9 @@ function doPost(e) {
       for (let i = 1; i < data.length; i++) {
         if (data[i][idCol] === body.id) {
           const r = i + 1;
-          ['name','calories','protein','carbs','fat','fiber','sugar'].forEach(field => {
-            sheet.getRange(r, headers.indexOf(field) + 1).setValue(body[field]);
+          ['name','calories','protein','carbs','fat','fiber','sugar','unit'].forEach(field => {
+            const col = headers.indexOf(field);
+            if (col !== -1) sheet.getRange(r, col + 1).setValue(body[field] !== undefined ? body[field] : '');
           });
           return jsonResponse({ success: true });
         }
@@ -142,6 +144,31 @@ function jsonResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---- Run this ONCE to add the 'unit' column to an existing Ingredients sheet ----
+
+function addUnitColumn() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Ingredients');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+
+  if (headers.includes('unit')) {
+    Logger.log('unit column already exists — nothing to do.');
+    return;
+  }
+
+  // Append 'unit' as the last column header
+  const lastCol = headers.length + 1;
+  sheet.getRange(1, lastCol).setValue('unit');
+
+  // Fill all existing ingredient rows with 'g' (default)
+  for (let i = 2; i <= data.length; i++) {
+    sheet.getRange(i, lastCol).setValue('g');
+  }
+
+  Logger.log('unit column added. All existing ingredients set to g.');
 }
 
 // ---- Run this ONCE from the Apps Script editor to seed starter ingredients ----

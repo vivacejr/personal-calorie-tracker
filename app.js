@@ -53,16 +53,26 @@ function fmtDate(dateStr) {
 
 function r1(n) { return Math.round(Number(n) * 10) / 10; }
 
-function computeMacros(ing, grams) {
-  const f = grams / 100;
+function computeMacros(ing, amount) {
+  const factor = (ing.unit || 'g') === 'qty' ? amount : amount / 100;
   return {
-    calories: r1(Number(ing.calories) * f),
-    protein:  r1(Number(ing.protein)  * f),
-    carbs:    r1(Number(ing.carbs)    * f),
-    fat:      r1(Number(ing.fat)      * f),
-    fiber:    r1(Number(ing.fiber)    * f),
-    sugar:    r1(Number(ing.sugar)    * f),
+    calories: r1(Number(ing.calories) * factor),
+    protein:  r1(Number(ing.protein)  * factor),
+    carbs:    r1(Number(ing.carbs)    * factor),
+    fat:      r1(Number(ing.fat)      * factor),
+    fiber:    r1(Number(ing.fiber)    * factor),
+    sugar:    r1(Number(ing.sugar)    * factor),
   };
+}
+
+function getIngUnit(ingredientId) {
+  const ing = state.ingredients.find(i => i.id === ingredientId);
+  return (ing && ing.unit) || 'g';
+}
+
+function getModalUnit() {
+  const active = document.querySelector('.unit-opt.active');
+  return active ? active.dataset.unit : 'g';
 }
 
 function sumMacros(logs) {
@@ -181,7 +191,7 @@ function renderMealGroups(logs, containerId, deletable) {
       html += `<div class="log-row">
         <div class="log-row-info">
           <div class="log-row-name">${esc(row.ingredientName)}</div>
-          <div class="log-row-meta">${row.grams}g &nbsp;·&nbsp; P:${row.protein} C:${row.carbs} F:${row.fat}</div>
+          <div class="log-row-meta">${row.grams}${getIngUnit(row.ingredientId) === 'qty' ? '×' : 'g'} &nbsp;·&nbsp; P:${row.protein} C:${row.carbs} F:${row.fat}</div>
         </div>
         <span class="log-row-kcal">${row.calories}</span>
         ${deletable ? `<button class="del-btn" data-id="${esc(row.id)}" title="Delete">×</button>` : ''}
@@ -259,14 +269,17 @@ function renderPicker(filter) {
     el.innerHTML = '<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px">No ingredients found</div>';
     return;
   }
-  el.innerHTML = items.map(ing => `
+  el.innerHTML = items.map(ing => {
+    const unitLabel = (ing.unit || 'g') === 'qty' ? 'per unit' : 'per 100g';
+    return `
     <div class="picker-row">
       <div class="picker-row-info">
         <div class="picker-row-name">${esc(ing.name)}</div>
-        <div class="picker-row-macros">${ing.calories} kcal &nbsp;·&nbsp; P:${ing.protein} C:${ing.carbs} F:${ing.fat} per 100g</div>
+        <div class="picker-row-macros">${ing.calories} kcal &nbsp;·&nbsp; P:${ing.protein} C:${ing.carbs} F:${ing.fat} <span style="opacity:0.6">${unitLabel}</span></div>
       </div>
       <button class="plus-btn" data-id="${esc(ing.id)}">+</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   el.querySelectorAll('.plus-btn').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -277,7 +290,8 @@ function renderPicker(filter) {
         toast('Already added — adjust grams below');
         return;
       }
-      state.currentMeal.items.push({ ingredient: ing, grams: 100 });
+      const defaultAmt = (ing.unit || 'g') === 'qty' ? 1 : 100;
+      state.currentMeal.items.push({ ingredient: ing, grams: defaultAmt });
       renderSelected();
     });
   });
@@ -294,16 +308,19 @@ function renderSelected() {
   }
   section.style.display = 'block';
 
-  list.innerHTML = state.currentMeal.items.map((item, idx) => `
+  list.innerHTML = state.currentMeal.items.map((item, idx) => {
+    const unitLabel = (item.ingredient.unit || 'g') === 'qty' ? '×' : 'g';
+    return `
     <div class="selected-row">
       <span class="selected-row-name">${esc(item.ingredient.name)}</span>
       <div class="grams-wrap">
         <input type="number" class="grams-input" data-idx="${idx}"
                value="${item.grams}" min="1" inputmode="decimal">
-        <span class="grams-unit">g</span>
+        <span class="grams-unit">${unitLabel}</span>
       </div>
       <button class="rm-btn" data-idx="${idx}">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   list.querySelectorAll('.grams-input').forEach(input => {
     input.addEventListener('input', () => {
@@ -402,7 +419,7 @@ function renderIngList(filter) {
         <span class="clr-fat">F: ${ing.fat}g</span>
         ${ing.fiber ? `<span class="clr-muted">Fiber: ${ing.fiber}g</span>` : ''}
         ${ing.sugar ? `<span class="clr-muted">Sugar: ${ing.sugar}g</span>` : ''}
-        <span class="clr-muted">per 100g</span>
+        <span class="clr-muted">${(ing.unit || 'g') === 'qty' ? 'per unit' : 'per 100g'}</span>
       </div>
     </div>`).join('');
 
@@ -446,6 +463,7 @@ async function saveIngredient() {
 
   const data = {
     name,
+    unit:     getModalUnit(),
     calories: Number(document.getElementById('new-calories').value) || 0,
     protein:  Number(document.getElementById('new-protein').value)  || 0,
     carbs:    Number(document.getElementById('new-carbs').value)    || 0,
@@ -479,9 +497,14 @@ async function saveIngredient() {
   }
 }
 
+function setModalUnit(unit) {
+  document.querySelectorAll('.unit-opt').forEach(b => b.classList.toggle('active', b.dataset.unit === unit));
+  document.getElementById('macro-per-label').textContent = unit === 'qty' ? 'Macros per 1 unit' : 'Macros per 100g';
+}
+
 function openModal(ing = null) {
   editingIngredient = ing;
-  document.getElementById('modal-title').textContent  = ing ? 'EDIT INGREDIENT' : 'NEW INGREDIENT';
+  document.getElementById('modal-title').textContent   = ing ? 'EDIT INGREDIENT' : 'NEW INGREDIENT';
   document.getElementById('modal-confirm').textContent = ing ? 'SAVE' : 'ADD';
   document.getElementById('new-name').value     = ing ? ing.name     : '';
   document.getElementById('new-calories').value = ing ? ing.calories : '';
@@ -490,6 +513,7 @@ function openModal(ing = null) {
   document.getElementById('new-fat').value      = ing ? ing.fat      : '';
   document.getElementById('new-fiber').value    = ing ? ing.fiber    : '';
   document.getElementById('new-sugar').value    = ing ? ing.sugar    : '';
+  setModalUnit(ing ? (ing.unit || 'g') : 'g');
   document.getElementById('add-modal').style.display = 'flex';
   document.getElementById('new-name').focus();
 }
@@ -497,6 +521,7 @@ function openModal(ing = null) {
 function closeModal() {
   document.getElementById('add-modal').style.display = 'none';
   editingIngredient = null;
+  setModalUnit('g');
   ['new-name','new-calories','new-protein','new-carbs','new-fat','new-fiber','new-sugar']
     .forEach(id => { document.getElementById(id).value = ''; });
 }
@@ -586,6 +611,9 @@ async function start() {
   document.getElementById('ingredients-search').addEventListener('input', e => renderIngList(e.target.value));
   document.getElementById('add-ingredient-fab').addEventListener('click', () => openModal());
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.querySelectorAll('.unit-opt').forEach(btn => {
+    btn.addEventListener('click', () => setModalUnit(btn.dataset.unit));
+  });
   document.getElementById('modal-confirm').addEventListener('click', saveIngredient);
   document.getElementById('modal-backdrop') && document.getElementById('modal-backdrop').addEventListener('click', closeModal);
   document.querySelector('.modal-backdrop').addEventListener('click', closeModal);

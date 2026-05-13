@@ -375,6 +375,16 @@ html, body {
 .modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 18px; }
 .modal-title { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--cyan); margin-bottom: 2px; }
 .modal-sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.unit-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
+.unit-opt {
+  flex: 1; background: none;
+  border: 1px solid var(--border2); border-radius: 7px;
+  color: var(--muted2); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; padding: 8px; cursor: pointer;
+  font-family: inherit; transition: border-color 0.15s, color 0.15s;
+}
+.unit-opt.active { border-color: var(--cyan); color: var(--cyan); }
+
 .macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
 .macro-field { display: flex; flex-direction: column; gap: 4px; }
 .macro-field-label { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; }

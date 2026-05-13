@@ -113,7 +113,11 @@
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <h2 id="modal-title" class="modal-title">NEW INGREDIENT</h2>
-    <p class="modal-sub">Enter macros per 100g</p>
+    <div class="unit-toggle">
+      <button type="button" class="unit-opt active" data-unit="g">GRAMS</button>
+      <button type="button" class="unit-opt" data-unit="qty">QUANTITY</button>
+    </div>
+    <p id="macro-per-label" class="modal-sub">Macros per 100g</p>
     <input type="text" id="new-name" class="input" placeholder="Ingredient name" autocomplete="off">
     <div class="macro-grid">
       <label class="macro-field">
