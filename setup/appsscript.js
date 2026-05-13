@@ -83,7 +83,6 @@ function doPost(e) {
         ]);
         return id;
       });
-      // Invalidate log cache for every date in the batch
       const dates = [...new Set(body.entries.map(en => en.date))];
       sc.removeAll(dates.map(d => 'logs_' + d));
       return jsonResponse({ success: true, ids });
