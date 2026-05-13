@@ -129,7 +129,6 @@ function showView(name) {
 // ── Shared renderers ───────────────────────────────────────────────────────
 function macroCardHTML(t) {
   const fiberLine = t.fiber ? `<div class="macro-pill"><span class="pill-val clr-fiber">${t.fiber}g</span><span class="pill-lbl">FIBER</span></div>` : '';
-  const sugarLine = t.sugar ? `<div class="macro-pill"><span class="pill-val clr-sugar">${t.sugar}g</span><span class="pill-lbl">SUGAR</span></div>` : '';
   return `
     <div class="macro-card">
       <div class="macro-cal-row">
@@ -139,7 +138,7 @@ function macroCardHTML(t) {
         <div class="macro-pill"><span class="pill-val clr-protein">${t.protein}g</span><span class="pill-lbl">PROTEIN</span></div>
         <div class="macro-pill"><span class="pill-val clr-carbs">${t.carbs}g</span><span class="pill-lbl">CARBS</span></div>
         <div class="macro-pill"><span class="pill-val clr-fat">${t.fat}g</span><span class="pill-lbl">FAT</span></div>
-        ${fiberLine}${sugarLine}
+        ${fiberLine}
       </div>
     </div>`;
 }
@@ -418,7 +417,6 @@ function renderIngList(filter) {
         <span class="clr-carbs">C: ${ing.carbs}g</span>
         <span class="clr-fat">F: ${ing.fat}g</span>
         ${ing.fiber ? `<span class="clr-muted">Fiber: ${ing.fiber}g</span>` : ''}
-        ${ing.sugar ? `<span class="clr-muted">Sugar: ${ing.sugar}g</span>` : ''}
         <span class="clr-muted">${(ing.unit || 'g') === 'qty' ? 'per unit' : 'per 100g'}</span>
       </div>
     </div>`).join('');
@@ -469,7 +467,7 @@ async function saveIngredient() {
     carbs:    Number(document.getElementById('new-carbs').value)    || 0,
     fat:      Number(document.getElementById('new-fat').value)      || 0,
     fiber:    Number(document.getElementById('new-fiber').value)    || 0,
-    sugar:    Number(document.getElementById('new-sugar').value)    || 0,
+    sugar:    0,
   };
 
   const btn = document.getElementById('modal-confirm');
@@ -512,7 +510,6 @@ function openModal(ing = null) {
   document.getElementById('new-carbs').value    = ing ? ing.carbs    : '';
   document.getElementById('new-fat').value      = ing ? ing.fat      : '';
   document.getElementById('new-fiber').value    = ing ? ing.fiber    : '';
-  document.getElementById('new-sugar').value    = ing ? ing.sugar    : '';
   setModalUnit(ing ? (ing.unit || 'g') : 'g');
   document.getElementById('add-modal').style.display = 'flex';
   document.getElementById('new-name').focus();
@@ -522,7 +519,7 @@ function closeModal() {
   document.getElementById('add-modal').style.display = 'none';
   editingIngredient = null;
   setModalUnit('g');
-  ['new-name','new-calories','new-protein','new-carbs','new-fat','new-fiber','new-sugar']
+  ['new-name','new-calories','new-protein','new-carbs','new-fat','new-fiber']
     .forEach(id => { document.getElementById(id).value = ''; });
 }
 
