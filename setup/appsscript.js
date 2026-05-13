@@ -128,7 +128,8 @@ function doPost(e) {
 
 function getSheetRows(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
-  const data = sheet.getDataRange().getValues();
+  const range = sheet.getDataRange();
+  const data = range.getDisplayValues(); // returns everything as strings, no type conversion
   if (data.length <= 1) return [];
   const headers = data[0];
   return data.slice(1)
