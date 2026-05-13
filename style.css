@@ -428,6 +428,14 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
+.back-btn {
+  background: none; border: none; color: var(--muted2);
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+  display: flex; align-items: center; min-height: 36px;
+  flex-shrink: 0; transition: color 0.15s;
+}
+.back-btn:active { color: var(--cyan); }
+
 /* ── Setup screen ── */
 .setup-screen {
   position: fixed; inset: 0; background: var(--bg);

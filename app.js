@@ -117,7 +117,8 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
-  document.querySelector(`.nav-btn[data-view="${name}"]`).classList.add('active');
+  const navBtn = document.querySelector(`.nav-btn[data-view="${name}"]`);
+  if (navBtn) navBtn.classList.add('active');
 
   if (name === 'today')       loadToday();
   if (name === 'log')         initLogView();
@@ -502,11 +503,9 @@ function initHistoryView() {
   if (!input.value) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toLocaleDateString('en-CA');
-    input.max = yStr;
-    input.value = yStr;
-    loadHistory(yStr);
+    input.value = yesterday.toLocaleDateString('en-CA');
   }
+  loadHistory(input.value); // always refresh on view switch
 }
 
 async function loadHistory(date) {
@@ -572,6 +571,8 @@ async function start() {
   });
 
   // Log meal
+  document.getElementById('log-fab').addEventListener('click', () => showView('log'));
+  document.getElementById('log-back-btn').addEventListener('click', () => showView('today'));
   document.getElementById('ingredient-search').addEventListener('input', e => renderPicker(e.target.value));
   document.getElementById('save-meal-btn').addEventListener('click', saveMeal);
 

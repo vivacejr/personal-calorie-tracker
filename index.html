@@ -25,13 +25,17 @@
     <div id="today-content">
       <div class="loading-state">Loading</div>
     </div>
+    <button id="log-fab" class="fab" aria-label="Log meal">+</button>
   </div>
 
   <!-- ── LOG MEAL ── -->
   <div id="view-log" class="view">
-    <header class="view-header">
-      <span class="view-eyebrow">NEW ENTRY</span>
-      <h1 class="view-title">LOG MEAL</h1>
+    <header class="view-header" style="display:flex;align-items:center;gap:12px">
+      <button id="log-back-btn" class="back-btn" aria-label="Back">←</button>
+      <div>
+        <span class="view-eyebrow">NEW ENTRY</span>
+        <h1 class="view-title">LOG MEAL</h1>
+      </div>
     </header>
 
     <div class="section">
@@ -96,10 +100,6 @@
   <button class="nav-btn active" data-view="today">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
     <span class="nav-label">TODAY</span>
-  </button>
-  <button class="nav-btn" data-view="log">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
-    <span class="nav-label">LOG</span>
   </button>
   <button class="nav-btn" data-view="ingredients">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
