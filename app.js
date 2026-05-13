@@ -584,7 +584,7 @@ async function start() {
 
   // Ingredients
   document.getElementById('ingredients-search').addEventListener('input', e => renderIngList(e.target.value));
-  document.getElementById('add-ingredient-fab').addEventListener('click', openModal);
+  document.getElementById('add-ingredient-fab').addEventListener('click', () => openModal());
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('modal-confirm').addEventListener('click', saveIngredient);
   document.getElementById('modal-backdrop') && document.getElementById('modal-backdrop').addEventListener('click', closeModal);
