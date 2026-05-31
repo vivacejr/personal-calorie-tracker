@@ -614,8 +614,8 @@ function renderTrendCharts(dates, dailyTotals) {
   trendsCharts = [];
 
   const macros = [
-    { key: 'calories', label: 'CALORIES', color: '#60a5fa' },
-    { key: 'protein',  label: 'PROTEIN',  color: '#34d399' },
+    { key: 'calories', label: 'CALORIES', color: '#60a5fa', benchmark: 1900 },
+    { key: 'protein',  label: 'PROTEIN',  color: '#34d399', benchmark: 120  },
     { key: 'carbs',    label: 'CARBS',    color: '#fbbf24' },
     { key: 'fat',      label: 'FAT',      color: '#f87171' },
     { key: 'fiber',    label: 'FIBER',    color: '#a78bfa' },
@@ -648,18 +648,28 @@ function renderTrendCharts(dates, dailyTotals) {
 
   macros.forEach(m => {
     const canvas = document.getElementById('tchart-' + m.key);
+    const datasets = [{
+      type: 'bar',
+      data: dates.map(d => dailyTotals[d][m.key]),
+      backgroundColor: m.color + '40',
+      borderColor: m.color,
+      borderWidth: 1,
+      borderRadius: 3,
+    }];
+    if (m.benchmark) {
+      datasets.push({
+        type: 'line',
+        data: dates.map(() => m.benchmark),
+        borderColor: m.color,
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        fill: false,
+      });
+    }
     const chart = new Chart(canvas, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          data: dates.map(d => dailyTotals[d][m.key]),
-          backgroundColor: m.color + '40',
-          borderColor: m.color,
-          borderWidth: 1,
-          borderRadius: 3,
-        }],
-      },
+      data: { labels, datasets },
       options: chartDefaults,
     });
     trendsCharts.push(chart);
