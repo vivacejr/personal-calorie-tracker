@@ -428,6 +428,28 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
+/* ── Trends ── */
+.period-selector { display: flex; gap: 8px; }
+.period-btn {
+  background: none; border: 1px solid var(--border2); border-radius: 7px;
+  color: var(--muted2); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 7px 16px; cursor: pointer; font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.period-btn.active { border-color: var(--cyan); color: var(--cyan); }
+
+.trend-card {
+  margin: 0 16px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 12px 10px;
+}
+.trend-card-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.2em; margin-bottom: 8px;
+}
+.trend-chart-wrap { height: 150px; position: relative; }
+
 .back-btn {
   background: none; border: none; color: var(--muted2);
   font-size: 20px; cursor: pointer; padding: 4px 8px;

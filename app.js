@@ -5,7 +5,14 @@ let API_URL = localStorage.getItem('calorie_tracker_url') || '';
 
 // ── Frontend log cache (avoids repeat API calls when switching views) ───────
 const logCache = {}; // { "2026-05-14": [...logs] }
-function invalidateLogCache(date) { delete logCache[date]; }
+let trendsCache = null; // { days, dates, dailyTotals }
+let trendsDays = 7;
+let trendsCharts = []; // Chart.js instances
+
+function invalidateLogCache(date) {
+  delete logCache[date];
+  trendsCache = null; // trends data is also stale
+}
 
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {
@@ -35,8 +42,9 @@ const api = {
     return json;
   },
 
-  getIngredients:    ()        => api._get({ action: 'getIngredients' }),
-  getLogs:           (date)    => api._get({ action: 'getLogs', date }),
+  getIngredients:    ()          => api._get({ action: 'getIngredients' }),
+  getLogs:           (date)      => api._get({ action: 'getLogs', date }),
+  getLogsRange:      (from, to)  => api._get({ action: 'getLogsRange', from, to }),
   addIngredient:     (data)    => api._post({ action: 'addIngredient', ...data }),
   updateIngredient:  (data)    => api._post({ action: 'updateIngredient', ...data }),
   deleteIngredient:  (id)      => api._post({ action: 'deleteIngredient', id }),
@@ -128,6 +136,7 @@ function showView(name) {
   if (name === 'log')         initLogView();
   if (name === 'ingredients') renderIngList();
   if (name === 'history')     initHistoryView();
+  if (name === 'trends')      loadTrends(trendsDays);
 }
 
 // ── Shared renderers ───────────────────────────────────────────────────────
@@ -545,6 +554,118 @@ function renderHistoryLogs(date, logs) {
   renderMealGroups(logs, 'history-meals', () => { invalidateLogCache(date); loadHistory(date); });
 }
 
+// ── TRENDS ────────────────────────────────────────────────────────────────
+function makeDateRange(days) {
+  const dates = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(d.toLocaleDateString('en-CA'));
+  }
+  return dates;
+}
+
+function shortDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function computeDailyTotals(logs, dates) {
+  const byDate = {};
+  dates.forEach(d => { byDate[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }; });
+  logs.forEach(row => {
+    if (!byDate[row.date]) return;
+    byDate[row.date].calories = r1(byDate[row.date].calories + Number(row.calories));
+    byDate[row.date].protein  = r1(byDate[row.date].protein  + Number(row.protein));
+    byDate[row.date].carbs    = r1(byDate[row.date].carbs    + Number(row.carbs));
+    byDate[row.date].fat      = r1(byDate[row.date].fat      + Number(row.fat));
+    byDate[row.date].fiber    = r1(byDate[row.date].fiber    + Number(row.fiber));
+  });
+  return byDate;
+}
+
+async function loadTrends(days) {
+  trendsDays = days;
+  document.querySelectorAll('.period-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.days) === days);
+  });
+
+  if (trendsCache && trendsCache.days === days) {
+    renderTrendCharts(trendsCache.dates, trendsCache.dailyTotals);
+    return;
+  }
+
+  const content = document.getElementById('trends-content');
+  content.innerHTML = '<div class="loading-state">Loading</div>';
+
+  const dates = makeDateRange(days);
+  try {
+    const logs = await api.getLogsRange(dates[0], dates[dates.length - 1]);
+    const dailyTotals = computeDailyTotals(logs, dates);
+    trendsCache = { days, dates, dailyTotals };
+    renderTrendCharts(dates, dailyTotals);
+  } catch (e) {
+    content.innerHTML = '<div class="empty-state">Failed to load trends.</div>';
+  }
+}
+
+function renderTrendCharts(dates, dailyTotals) {
+  trendsCharts.forEach(c => c.destroy());
+  trendsCharts = [];
+
+  const macros = [
+    { key: 'calories', label: 'CALORIES', color: '#60a5fa' },
+    { key: 'protein',  label: 'PROTEIN',  color: '#34d399' },
+    { key: 'carbs',    label: 'CARBS',    color: '#fbbf24' },
+    { key: 'fat',      label: 'FAT',      color: '#f87171' },
+    { key: 'fiber',    label: 'FIBER',    color: '#a78bfa' },
+  ];
+
+  const labels = dates.map(shortDate);
+  const content = document.getElementById('trends-content');
+  content.innerHTML = macros.map(m => `
+    <div class="trend-card">
+      <div class="trend-card-label" style="color:${m.color}">${m.label}</div>
+      <div class="trend-chart-wrap"><canvas id="tchart-${m.key}"></canvas></div>
+    </div>`).join('');
+
+  const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { color: '#5a5a7a', font: { size: 9 }, maxRotation: 45 },
+        grid: { color: '#1c1c32' },
+      },
+      y: {
+        ticks: { color: '#5a5a7a', font: { size: 9 } },
+        grid: { color: '#1c1c32' },
+        beginAtZero: true,
+      },
+    },
+  };
+
+  macros.forEach(m => {
+    const canvas = document.getElementById('tchart-' + m.key);
+    const chart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: dates.map(d => dailyTotals[d][m.key]),
+          backgroundColor: m.color + '40',
+          borderColor: m.color,
+          borderWidth: 1,
+          borderRadius: 3,
+        }],
+      },
+      options: chartDefaults,
+    });
+    trendsCharts.push(chart);
+  });
+}
+
 // ── Setup screen ───────────────────────────────────────────────────────────
 function showSetup() {
   document.getElementById('setup-screen').style.display = 'flex';
@@ -603,6 +724,11 @@ async function start() {
 
   // History
   document.getElementById('history-date').addEventListener('change', e => { if (e.target.value) loadHistory(e.target.value); });
+
+  // Trends period selector
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => loadTrends(Number(btn.dataset.days)));
+  });
 
   // Load ingredients + today's logs in parallel
   try {

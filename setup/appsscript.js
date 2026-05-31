@@ -39,6 +39,18 @@ function doGet(e) {
       return jsonResponse({ success: true, data: filtered });
     }
 
+    if (action === 'getLogsRange') {
+      const from = e.parameter.from;
+      const to = e.parameter.to;
+      const key = 'range_' + from + '_' + to;
+      const cached = sc.get(key);
+      if (cached) return jsonResponse({ success: true, data: JSON.parse(cached) });
+      const all = getSheetRows(ss, 'Logs');
+      const filtered = all.filter(r => r.date >= from && r.date <= to);
+      sc.put(key, JSON.stringify(filtered), 300); // 5 min
+      return jsonResponse({ success: true, data: filtered });
+    }
+
     return jsonResponse({ success: false, error: 'Unknown action: ' + action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });

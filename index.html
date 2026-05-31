@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -93,6 +94,24 @@
     </div>
   </div>
 
+  <!-- ── TRENDS ── -->
+  <div id="view-trends" class="view">
+    <header class="view-header">
+      <span class="view-eyebrow">ANALYTICS</span>
+      <h1 class="view-title">TRENDS</h1>
+    </header>
+    <div class="section">
+      <div class="period-selector">
+        <button class="period-btn active" data-days="7">7D</button>
+        <button class="period-btn" data-days="14">14D</button>
+        <button class="period-btn" data-days="30">30D</button>
+      </div>
+    </div>
+    <div id="trends-content">
+      <div class="loading-state">Loading</div>
+    </div>
+  </div>
+
 </div><!-- /#app -->
 
 <!-- ── BOTTOM NAV ── -->
@@ -108,6 +127,10 @@
   <button class="nav-btn" data-view="history">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
     <span class="nav-label">HISTORY</span>
+  </button>
+  <button class="nav-btn" data-view="trends">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l4-5 4 3 4-7 4 4"/></svg>
+    <span class="nav-label">TRENDS</span>
   </button>
 </nav>
 
