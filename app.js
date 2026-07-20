@@ -609,6 +609,21 @@ async function loadTrends(days) {
   }
 }
 
+function computePeriodAverages(dates, dailyTotals) {
+  const loggedDates = dates.filter(d => dailyTotals[d].calories > 0);
+  const n = loggedDates.length || 1;
+  const sum = (key) => loggedDates.reduce((s, d) => s + dailyTotals[d][key], 0);
+  return {
+    calories: r1(sum('calories') / n),
+    protein:  r1(sum('protein')  / n),
+    carbs:    r1(sum('carbs')    / n),
+    fat:      r1(sum('fat')      / n),
+    fiber:    r1(sum('fiber')    / n),
+    loggedDays: loggedDates.length,
+    totalDays:  dates.length,
+  };
+}
+
 function renderTrendCharts(dates, dailyTotals) {
   trendsCharts.forEach(c => c.destroy());
   trendsCharts = [];
@@ -621,11 +636,30 @@ function renderTrendCharts(dates, dailyTotals) {
     { key: 'fiber',    label: 'FIBER',    color: '#a78bfa' },
   ];
 
+  const avgs = computePeriodAverages(dates, dailyTotals);
+  const unit = (key) => key === 'calories' ? 'kcal' : 'g';
+
   const labels = dates.map(shortDate);
   const content = document.getElementById('trends-content');
-  content.innerHTML = macros.map(m => `
+
+  const avgNote = avgs.loggedDays < avgs.totalDays
+    ? `<span class="trend-avg-note">${avgs.loggedDays}/${avgs.totalDays} days logged</span>`
+    : '';
+
+  content.innerHTML = `<div class="trend-avg-summary">
+    <div class="trend-avg-summary-title">DAILY AVERAGE${avgNote}</div>
+    <div class="trend-avg-pills">
+      ${macros.map(m => `<div class="trend-avg-pill" style="border-color:${m.color}20">
+        <span class="trend-avg-val" style="color:${m.color}">${avgs[m.key]}</span>
+        <span class="trend-avg-lbl">${m.label === 'CALORIES' ? 'kcal' : m.label.slice(0,1) + unit(m.key)}</span>
+      </div>`).join('')}
+    </div>
+  </div>` + macros.map(m => `
     <div class="trend-card">
-      <div class="trend-card-label" style="color:${m.color}">${m.label}</div>
+      <div class="trend-card-header">
+        <span class="trend-card-label" style="color:${m.color}">${m.label}</span>
+        <span class="trend-card-avg">avg <strong style="color:${m.color}">${avgs[m.key]}</strong> ${unit(m.key)}</span>
+      </div>
       <div class="trend-chart-wrap"><canvas id="tchart-${m.key}"></canvas></div>
     </div>`).join('');
 
@@ -648,6 +682,7 @@ function renderTrendCharts(dates, dailyTotals) {
 
   macros.forEach(m => {
     const canvas = document.getElementById('tchart-' + m.key);
+    const avg = avgs[m.key];
     const datasets = [{
       type: 'bar',
       data: dates.map(d => dailyTotals[d][m.key]),
@@ -655,14 +690,22 @@ function renderTrendCharts(dates, dailyTotals) {
       borderColor: m.color,
       borderWidth: 1,
       borderRadius: 3,
+    }, {
+      type: 'line',
+      data: dates.map(() => avg),
+      borderColor: m.color,
+      borderWidth: 1.5,
+      borderDash: [3, 3],
+      pointRadius: 0,
+      fill: false,
     }];
     if (m.benchmark) {
       datasets.push({
         type: 'line',
         data: dates.map(() => m.benchmark),
-        borderColor: m.color,
-        borderWidth: 1.5,
-        borderDash: [4, 4],
+        borderColor: m.color + '60',
+        borderWidth: 1,
+        borderDash: [6, 4],
         pointRadius: 0,
         fill: false,
       });
