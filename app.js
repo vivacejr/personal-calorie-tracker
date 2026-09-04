@@ -570,16 +570,18 @@ function shortDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function computeDailyTotals(logs, dates) {
+function computeDailyTotals(aggregatedRows, dates) {
   const byDate = {};
   dates.forEach(d => { byDate[d] = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }; });
-  logs.forEach(row => {
+  aggregatedRows.forEach(row => {
     if (!byDate[row.date]) return;
-    byDate[row.date].calories = r1(byDate[row.date].calories + Number(row.calories));
-    byDate[row.date].protein  = r1(byDate[row.date].protein  + Number(row.protein));
-    byDate[row.date].carbs    = r1(byDate[row.date].carbs    + Number(row.carbs));
-    byDate[row.date].fat      = r1(byDate[row.date].fat      + Number(row.fat));
-    byDate[row.date].fiber    = r1(byDate[row.date].fiber    + Number(row.fiber));
+    byDate[row.date] = {
+      calories: r1(Number(row.calories)),
+      protein:  r1(Number(row.protein)),
+      carbs:    r1(Number(row.carbs)),
+      fat:      r1(Number(row.fat)),
+      fiber:    r1(Number(row.fiber)),
+    };
   });
   return byDate;
 }

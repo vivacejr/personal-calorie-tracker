@@ -42,13 +42,19 @@ function doGet(e) {
     if (action === 'getLogsRange') {
       const from = e.parameter.from;
       const to = e.parameter.to;
-      const key = 'range_' + from + '_' + to;
-      const cached = sc.get(key);
-      if (cached) return jsonResponse({ success: true, data: JSON.parse(cached) });
       const all = getSheetRows(ss, 'Logs');
       const filtered = all.filter(r => r.date >= from && r.date <= to);
-      sc.put(key, JSON.stringify(filtered), 300); // 5 min
-      return jsonResponse({ success: true, data: filtered });
+      // Aggregate by date to keep response small (raw rows exceed URL limit)
+      const byDate = {};
+      filtered.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = { date: r.date, calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+        byDate[r.date].calories += Number(r.calories);
+        byDate[r.date].protein  += Number(r.protein);
+        byDate[r.date].carbs    += Number(r.carbs);
+        byDate[r.date].fat      += Number(r.fat);
+        byDate[r.date].fiber    += Number(r.fiber);
+      });
+      return jsonResponse({ success: true, data: Object.values(byDate) });
     }
 
     return jsonResponse({ success: false, error: 'Unknown action: ' + action });
