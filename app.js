@@ -1,7 +1,8 @@
 'use strict';
 
 // ── API URL (stored in localStorage, entered once by user) ─────────────────
-let API_URL = localStorage.getItem('calorie_tracker_url') || '';
+const HARDCODED_URL = 'https://script.google.com/macros/s/AKfycbwtgpFbOCTqs2uMzo-9Upq54iwECxKbjh0Hhv4P0vbKZjHV-hGa_z9mEzJxhRW46Ev6/exec'; // paste your Apps Script URL here
+let API_URL = HARDCODED_URL || localStorage.getItem('calorie_tracker_url') || '';
 
 // ── Frontend log cache (avoids repeat API calls when switching views) ───────
 const logCache = {}; // { "2026-05-14": [...logs] }
